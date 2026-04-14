@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Property, Owner, PropertyStatus } from "@/lib/mock/data";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Search, Plus, Building2, ChevronRight, Bed, Bath, Users, Wifi } from "lucide-react";
+import { Search, Plus, Building2, ChevronRight, Bed, Bath, Users, Wifi, Trash2 } from "lucide-react";
 import { useGlow } from "@/components/ui/glow-card";
 
 type PropertyWithOwner = Property & { owner: Owner };
@@ -133,8 +135,37 @@ function PropertyCard({ property: p }: { property: PropertyWithOwner }) {
   const activeRes = (p as any).activeReservation ?? null;
   const nextRes   = (p as any).nextReservation ?? null;
   const { ref, onMouseMove, onMouseLeave, glowStyle } = useGlow();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const router = useRouter();
+
+  async function handleDelete() {
+    setDeleting(true);
+    await fetch(`/api/properties?id=${p.id}`, { method: "DELETE" });
+    setDeleting(false);
+    setConfirmOpen(false);
+    router.refresh();
+  }
 
   return (
+    <>
+    <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>¿Eliminar propiedad?</DialogTitle>
+          <DialogDescription>
+            Se eliminará <strong>{p.name}</strong>. La información quedará guardada en la base de datos pero no aparecerá más en el sistema.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" size="sm" onClick={() => setConfirmOpen(false)} disabled={deleting}>Cancelar</Button>
+          <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting}>
+            {deleting ? "Eliminando..." : "Sí, eliminar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    <div className="relative group/card">
     <Link
       ref={ref}
       href={`/properties/${p.id}`}
@@ -230,5 +261,14 @@ function PropertyCard({ property: p }: { property: PropertyWithOwner }) {
         </span>
       </div>
     </Link>
+    <button
+      onClick={(e) => { e.preventDefault(); setConfirmOpen(true); }}
+      className="absolute top-3 right-3 z-10 p-1.5 rounded-lg bg-white border border-border text-muted-foreground opacity-0 group-hover/card:opacity-100 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all"
+      title="Eliminar propiedad"
+    >
+      <Trash2 className="h-3.5 w-3.5" />
+    </button>
+    </div>
+    </>
   );
 }

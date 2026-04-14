@@ -9,7 +9,7 @@ export const metadata = { title: "Propietarios" };
 
 export default async function OwnersPage() {
   const rawOwners = await prisma.owner.findMany({
-    where: { isActive: true },
+    where: { isActive: true, deletedAt: null },
     orderBy: { lastName: "asc" },
     include: { _count: { select: { properties: true } } },
   });

@@ -39,6 +39,7 @@ export type MessageWithRel = Prisma.MessageGetPayload<{
 
 export async function getProperties(): Promise<PropertyWithOwner[]> {
   return prisma.property.findMany({
+    where: { deletedAt: null },
     orderBy: { name: "asc" },
     include: { owner: true, platforms: true },
   });
@@ -48,6 +49,7 @@ export async function getProperties(): Promise<PropertyWithOwner[]> {
 
 export async function getGuests() {
   return prisma.guest.findMany({
+    where: { deletedAt: null },
     orderBy: { lastName: "asc" },
     include: { reservations: { include: { property: true }, orderBy: { checkIn: "desc" } } },
   });

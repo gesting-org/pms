@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Owner } from "@/lib/mock/data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Plus, Search, User, Building2, Mail, Phone, CreditCard, ChevronRight, Copy, Check } from "lucide-react";
+import { Plus, Search, User, Building2, Mail, Phone, CreditCard, ChevronRight, Copy, Check, Trash2 } from "lucide-react";
 import { useGlow } from "@/components/ui/glow-card";
 
 type OwnerWithCount = Owner & { propertiesCount: number };
@@ -50,6 +52,9 @@ export function OwnersList({ owners }: { owners: OwnerWithCount[] }) {
 
 function OwnerCard({ owner: o }: { owner: OwnerWithCount }) {
   const [copied, setCopied] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const router = useRouter();
   const { ref, onMouseMove, onMouseLeave, glowStyle } = useGlow();
 
   function copyAlias() {
@@ -59,7 +64,33 @@ function OwnerCard({ owner: o }: { owner: OwnerWithCount }) {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  async function handleDelete() {
+    setDeleting(true);
+    await fetch(`/api/owners?id=${o.id}`, { method: "DELETE" });
+    setDeleting(false);
+    setConfirmOpen(false);
+    router.refresh();
+  }
+
   return (
+    <>
+    <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>¿Eliminar propietario?</DialogTitle>
+          <DialogDescription>
+            Se eliminará a <strong>{o.firstName} {o.lastName}</strong>. La información quedará guardada en la base de datos pero no aparecerá más en el sistema.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" size="sm" onClick={() => setConfirmOpen(false)} disabled={deleting}>Cancelar</Button>
+          <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting}>
+            {deleting ? "Eliminando..." : "Sí, eliminar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    <div className="relative group/card">
     <Link
       ref={ref}
       href={`/owners/${o.id}`}
@@ -107,5 +138,14 @@ function OwnerCard({ owner: o }: { owner: OwnerWithCount }) {
         )}
       </div>
     </Link>
+    <button
+      onClick={(e) => { e.preventDefault(); setConfirmOpen(true); }}
+      className="absolute top-3 right-3 z-10 p-1.5 rounded-lg bg-white border border-border text-muted-foreground opacity-0 group-hover/card:opacity-100 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all"
+      title="Eliminar propietario"
+    >
+      <Trash2 className="h-3.5 w-3.5" />
+    </button>
+    </div>
+    </>
   );
 }

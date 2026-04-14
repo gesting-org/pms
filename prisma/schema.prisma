@@ -124,6 +124,7 @@ model Owner {
   portalPassword   String?
   mustChangePassword Boolean @default(true)
   isActive         Boolean  @default(true)
+  deletedAt        DateTime?
   notes          String?  @db.Text
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -150,6 +151,7 @@ model Property {
   commissionRate Decimal        @default(20.00) @db.Decimal(5, 2)
   status         PropertyStatus @default(ACTIVE)
   colorTag       String         @default("#3B82F6")
+  deletedAt      DateTime?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
@@ -262,6 +264,7 @@ model Guest {
   nationality  String?
   dni          String?
   notes        String?  @db.Text
+  deletedAt    DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

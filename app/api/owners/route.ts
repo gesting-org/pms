@@ -7,7 +7,7 @@ export async function GET() {
   if (auth.error) return auth.error;
   try {
     const owners = await prisma.owner.findMany({
-      where: { isActive: true },
+      where: { isActive: true, deletedAt: null },
       orderBy: { lastName: "asc" },
       select: { id: true, firstName: true, lastName: true, email: true, phone: true, dni: true },
     });
@@ -53,6 +53,51 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, id: owner.id });
+  } catch (err) {
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id) return NextResponse.json({ ok: false, error: "ID requerido" }, { status: 400 });
+
+    const now = new Date();
+
+    // Find properties owned by this owner
+    const properties = await prisma.property.findMany({
+      where: { ownerId: id, deletedAt: null },
+      select: { id: true },
+    });
+    const propertyIds = properties.map((p) => p.id);
+
+    // Soft-delete all properties
+    if (propertyIds.length > 0) {
+      await prisma.property.updateMany({
+        where: { id: { in: propertyIds } },
+        data: { deletedAt: now },
+      });
+
+      // Hard-delete tasks linked to those properties (no deletedAt on Task)
+      await prisma.task.deleteMany({
+        where: { propertyId: { in: propertyIds } },
+      });
+    }
+
+    // Terminate all contracts of this owner
+    await prisma.managementContract.updateMany({
+      where: { ownerId: id, status: { not: "TERMINATED" } },
+      data: { status: "TERMINATED" },
+    });
+
+    // Soft-delete the owner
+    await prisma.owner.update({ where: { id }, data: { deletedAt: now } });
+
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }

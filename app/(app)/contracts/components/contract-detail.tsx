@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ManagementContract, Property, Owner } from "@/lib/mock/data";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft, Building2, User, Calendar,
@@ -33,6 +36,21 @@ interface Props {
 export function ContractDetail({ contract: c, property, owner }: Props) {
   const daysLeft    = Math.ceil((new Date(c.endDate).getTime() - Date.now()) / 86400000);
   const statusStyle = STATUS_STYLE[c.status];
+  const [rescindOpen, setRescindOpen] = useState(false);
+  const [rescinding, setRescinding] = useState(false);
+  const router = useRouter();
+
+  async function handleRescind() {
+    setRescinding(true);
+    await fetch("/api/contracts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: c.id, status: "TERMINATED" }),
+    });
+    setRescinding(false);
+    setRescindOpen(false);
+    router.refresh();
+  }
 
   return (
     <div className="space-y-5">
@@ -201,7 +219,12 @@ export function ContractDetail({ contract: c, property, owner }: Props) {
           Descargar PDF
         </Button>
         {c.status !== "TERMINATED" && c.status !== "EXPIRED" && (
-          <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:border-red-300">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-red-600 hover:text-red-700 hover:border-red-300"
+            onClick={() => setRescindOpen(true)}
+          >
             Rescindir contrato
           </Button>
         )}
@@ -213,6 +236,25 @@ export function ContractDetail({ contract: c, property, owner }: Props) {
           </Button>
         )}
       </div>
+
+      <Dialog open={rescindOpen} onOpenChange={setRescindOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>¿Rescindir contrato?</DialogTitle>
+            <DialogDescription>
+              Se marcará el contrato <strong>{c.contractNumber}</strong> como rescindido. Esta acción no puede deshacerse fácilmente.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setRescindOpen(false)} disabled={rescinding}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" size="sm" onClick={handleRescind} disabled={rescinding}>
+              {rescinding ? "Rescindiendo..." : "Sí, rescindir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

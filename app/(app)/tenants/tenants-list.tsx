@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 type Tenant = any; type Contract = any;
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Search, Plus, Users, ChevronRight, Star } from "lucide-react";
+import { Search, Plus, Users, ChevronRight, Star, Trash2 } from "lucide-react";
 
 type TenantWithContracts = Tenant & { contracts: Contract[] };
 
-const SCORE_STYLE: Record<Tenant["score"], { pill: string; label: string }> = {
+const SCORE_STYLE: Record<string, { pill: string; label: string }> = {
   EXCELENTE: { pill: "pill-active",  label: "Excelente" },
   BUENO:     { pill: "pill-info",    label: "Bueno"     },
   REGULAR:   { pill: "pill-warning", label: "Regular"   },
@@ -112,71 +114,7 @@ export function TenantsList({ tenants }: { tenants: TenantWithContracts[] }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.map((t) => {
-                const score = SCORE_STYLE[t.score];
-                const activeContract = t.contracts.find((c: any) => c.status === "ACTIVO");
-                return (
-                  <Link key={t.id} href={`/tenants/${t.id}`} className="contents group">
-                    <tr className="hover:bg-[hsl(220_14%_98%)] transition-colors cursor-pointer">
-                      {/* Nombre */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className={cn(
-                            "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
-                            t.isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                          )}>
-                            {t.firstName[0]}{t.lastName[0]}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors">
-                              {t.firstName} {t.lastName}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">{t.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      {/* DNI */}
-                      <td className="px-4 py-3 hidden sm:table-cell">
-                        <span className="text-xs text-foreground tabular-nums">{t.dni}</span>
-                      </td>
-                      {/* Teléfono */}
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        <span className="text-xs text-foreground">{t.phone}</span>
-                      </td>
-                      {/* Ocupación */}
-                      <td className="px-4 py-3 hidden lg:table-cell">
-                        <div>
-                          <p className="text-xs text-foreground">{t.occupation ?? "—"}</p>
-                          {t.employer && (
-                            <p className="text-[10px] text-muted-foreground">{t.employer}</p>
-                          )}
-                        </div>
-                      </td>
-                      {/* Contratos */}
-                      <td className="px-4 py-3 text-center hidden xl:table-cell">
-                        <span className={cn(
-                          "text-xs font-semibold",
-                          activeContract ? "text-emerald-600" : "text-muted-foreground"
-                        )}>
-                          {t.contracts.length}
-                          {activeContract && <span className="text-[10px] ml-1 font-normal">(activo)</span>}
-                        </span>
-                      </td>
-                      {/* Score */}
-                      <td className="px-4 py-3">
-                        <span className={cn("pill text-[11px]", score.pill)}>
-                          <Star className="h-2.5 w-2.5" />
-                          {score.label}
-                        </span>
-                      </td>
-                      {/* Chevron */}
-                      <td className="px-3 py-3">
-                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </td>
-                    </tr>
-                  </Link>
-                );
-              })}
+              {filtered.map((t) => <TenantRow key={t.id} tenant={t} />)}
             </tbody>
           </table>
 
@@ -188,5 +126,105 @@ export function TenantsList({ tenants }: { tenants: TenantWithContracts[] }) {
         </div>
       )}
     </div>
+  );
+}
+
+function TenantRow({ tenant: t }: { tenant: any }) {
+  const score = SCORE_STYLE[t.score] ?? { pill: "pill-inactive", label: t.score ?? "—" };
+  const activeContract = t.contracts?.find((c: any) => c.status === "ACTIVO");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const router = useRouter();
+
+  async function handleDelete() {
+    setDeleting(true);
+    await fetch(`/api/guests?id=${t.id}`, { method: "DELETE" });
+    setDeleting(false);
+    setConfirmOpen(false);
+    router.refresh();
+  }
+
+  return (
+    <>
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>¿Eliminar inquilino?</DialogTitle>
+            <DialogDescription>
+              Se eliminará a <strong>{t.firstName} {t.lastName}</strong>. La información quedará guardada en la base de datos pero no aparecerá más en el sistema.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setConfirmOpen(false)} disabled={deleting}>Cancelar</Button>
+            <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting}>
+              {deleting ? "Eliminando..." : "Sí, eliminar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Link href={`/tenants/${t.id}`} className="contents group">
+        <tr className="hover:bg-[hsl(220_14%_98%)] transition-colors cursor-pointer">
+          {/* Nombre */}
+          <td className="px-4 py-3">
+            <div className="flex items-center gap-2.5">
+              <div className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
+                t.isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+              )}>
+                {t.firstName[0]}{t.lastName[0]}
+              </div>
+              <div className="min-w-0">
+                <p className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors">
+                  {t.firstName} {t.lastName}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">{t.email}</p>
+              </div>
+            </div>
+          </td>
+          {/* DNI */}
+          <td className="px-4 py-3 hidden sm:table-cell">
+            <span className="text-xs text-foreground tabular-nums">{t.dni}</span>
+          </td>
+          {/* Teléfono */}
+          <td className="px-4 py-3 hidden md:table-cell">
+            <span className="text-xs text-foreground">{t.phone}</span>
+          </td>
+          {/* Ocupación */}
+          <td className="px-4 py-3 hidden lg:table-cell">
+            <div>
+              <p className="text-xs text-foreground">{t.occupation ?? "—"}</p>
+              {t.employer && <p className="text-[10px] text-muted-foreground">{t.employer}</p>}
+            </div>
+          </td>
+          {/* Contratos */}
+          <td className="px-4 py-3 text-center hidden xl:table-cell">
+            <span className={cn("text-xs font-semibold", activeContract ? "text-emerald-600" : "text-muted-foreground")}>
+              {t.contracts?.length ?? 0}
+              {activeContract && <span className="text-[10px] ml-1 font-normal">(activo)</span>}
+            </span>
+          </td>
+          {/* Score */}
+          <td className="px-4 py-3">
+            <span className={cn("pill text-[11px]", score.pill)}>
+              <Star className="h-2.5 w-2.5" />
+              {score.label}
+            </span>
+          </td>
+          {/* Acciones */}
+          <td className="px-3 py-3">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={(e) => { e.preventDefault(); setConfirmOpen(true); }}
+                className="p-1 rounded hover:bg-red-50 hover:text-red-600 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all"
+                title="Eliminar inquilino"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </td>
+        </tr>
+      </Link>
+    </>
   );
 }

@@ -2,6 +2,19 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/api-auth";
 
+export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  try {
+    const { id, status } = await req.json();
+    if (!id) return NextResponse.json({ ok: false, error: "ID requerido" }, { status: 400 });
+    await prisma.managementContract.update({ where: { id }, data: { status } });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;

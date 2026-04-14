@@ -21,6 +21,7 @@ export async function GET() {
   if (auth.error) return auth.error;
   try {
     const properties = await prisma.property.findMany({
+      where: { deletedAt: null },
       orderBy: { name: "asc" },
       select: { id: true, name: true, colorTag: true, status: true },
     });
@@ -76,6 +77,20 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, id: property.id });
+  } catch (err) {
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id) return NextResponse.json({ ok: false, error: "ID requerido" }, { status: 400 });
+    await prisma.property.update({ where: { id }, data: { deletedAt: new Date() } });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
