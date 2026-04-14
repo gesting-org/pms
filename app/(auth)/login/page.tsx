@@ -97,7 +97,7 @@ function FloatingInput({
         onBlur={() => setFocused(false)}
         autoComplete={id}
         className={`
-          w-full pt-5 pb-2 px-3.5 rounded-lg text-sm text-white bg-white/8
+          w-full pt-5 pb-2 px-3.5 rounded-lg text-sm text-white caret-white bg-white/8 [color-scheme:dark]
           border transition-all outline-none
           placeholder-transparent disabled:opacity-50
           ${error
