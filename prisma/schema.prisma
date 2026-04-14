@@ -1,0 +1,554 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  role      UserRole @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions Session[]
+  accounts Account[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum UserRole {
+  ADMIN
+  OWNER
+}
+
+// ─── CONFIGURACIÓN GESTING ────────────────────────────────────────────────────
+
+model GestingConfig {
+  id                  String   @id @default(cuid())
+  companyName         String   @default("Gesting PMS")
+  legalName           String?
+  cuit                String?
+  representative      String?
+  representativeDni   String?
+  address             String?
+  city                String?
+  province            String?
+  email               String?
+  phone               String?
+  website             String?
+  defaultCommission   Decimal  @default(20.00) @db.Decimal(5, 2)
+  lateFeeRate         Decimal  @default(10.00) @db.Decimal(5, 2)
+  liquidationDueDay   Int      @default(5)
+  currency            String   @default("ARS")
+  claudeApiKey        String?
+  resendApiKey        String?
+  whatsappApiKey      String?
+  whatsappPhone       String?
+  contractTemplate    String?  @db.Text
+  welcomeEmailTpl     String?  @db.Text
+  checkoutEmailTpl    String?  @db.Text
+  checkinReminderTpl  String?  @db.Text
+  liquidationEmailTpl String?  @db.Text
+  notifCheckIn        Boolean  @default(true)
+  notifCheckOut       Boolean  @default(true)
+  notifContractExp30  Boolean  @default(true)
+  notifContractExp60  Boolean  @default(true)
+  notifLiqOverdue     Boolean  @default(true)
+  notifTaskOverdue    Boolean  @default(true)
+  notifNewReservation Boolean  @default(true)
+  notifPaymentReceived Boolean @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// ─── PROPIETARIOS ─────────────────────────────────────────────────────────────
+
+model Owner {
+  id             String   @id @default(cuid())
+  firstName      String
+  lastName       String
+  dni            String   @unique
+  cuit           String?  @unique
+  email          String   @unique
+  phone          String?
+  address        String?
+  city           String?
+  province       String?
+  bankName       String?
+  bankAccount    String?
+  bankAlias      String?
+  portalToken      String?  @unique
+  portalTokenExp   DateTime?
+  portalPassword   String?
+  mustChangePassword Boolean @default(true)
+  isActive         Boolean  @default(true)
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  properties Property[]
+  contracts  ManagementContract[]
+  messages   Message[]
+}
+
+// ─── PROPIEDADES ──────────────────────────────────────────────────────────────
+
+model Property {
+  id             String         @id @default(cuid())
+  ownerId        String
+  name           String
+  address        String
+  city           String
+  province       String
+  description    String?        @db.Text
+  bedrooms       Int            @default(1)
+  bathrooms      Int            @default(1)
+  maxGuests      Int            @default(2)
+  amenities      String[]
+  commissionRate Decimal        @default(20.00) @db.Decimal(5, 2)
+  status         PropertyStatus @default(ACTIVE)
+  colorTag       String         @default("#3B82F6")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  owner          Owner              @relation(fields: [ownerId], references: [id])
+  photos         PropertyPhoto[]
+  platforms      PropertyPlatform[]
+  reservations   Reservation[]
+  contracts      ManagementContract[]
+  expenses       Expense[]
+  tasks          Task[]
+  liquidations   Liquidation[]
+  calendarBlocks CalendarBlock[]
+  messages       Message[]
+}
+
+model PropertyPhoto {
+  id         String   @id @default(cuid())
+  propertyId String
+  url        String
+  caption    String?
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model PropertyPlatform {
+  id         String   @id @default(cuid())
+  propertyId String
+  platform   Platform
+  listingUrl String?
+  listingId  String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, platform])
+}
+
+enum PropertyStatus {
+  ACTIVE
+  MAINTENANCE
+  PAUSED
+  INACTIVE
+}
+
+enum Platform {
+  AIRBNB
+  BOOKING
+  DIRECT
+  OTHER
+}
+
+// ─── CONTRATOS DE GESTIÓN ─────────────────────────────────────────────────────
+
+model ManagementContract {
+  id                 String         @id @default(cuid())
+  propertyId         String
+  ownerId            String
+  contractNumber     String         @unique
+  startDate          DateTime
+  endDate            DateTime
+  durationMonths     Int
+  commissionRate     Decimal        @db.Decimal(5, 2)
+  insuranceMinAmount Decimal?       @db.Decimal(12, 2)
+  city               String
+  ownerFullName      String
+  ownerDni           String
+  ownerCuit          String?
+  ownerAddress       String
+  gestingRepName     String
+  gestingRepDni      String
+  gestingCuit        String
+  gestingAddress     String
+  propertyAddress    String
+  fullText           String?        @db.Text
+  additionalClauses  String?        @db.Text
+  status             ContractStatus @default(DRAFT)
+  signedAt           DateTime?
+  signatureHash      String?
+  signatureIp        String?
+  pdfUrl             String?
+  alert90Sent        Boolean        @default(false)
+  alert60Sent        Boolean        @default(false)
+  alert30Sent        Boolean        @default(false)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id])
+  owner    Owner    @relation(fields: [ownerId], references: [id])
+}
+
+enum ContractStatus {
+  DRAFT
+  ACTIVE
+  EXPIRING_SOON
+  EXPIRED
+  TERMINATED
+}
+
+// ─── HUÉSPEDES ────────────────────────────────────────────────────────────────
+
+model Guest {
+  id           String   @id @default(cuid())
+  firstName    String
+  lastName     String
+  email        String?
+  phone        String?
+  nationality  String?
+  dni          String?
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  reservations Reservation[]
+  messages     Message[]
+}
+
+// ─── RESERVAS ─────────────────────────────────────────────────────────────────
+
+model Reservation {
+  id            String            @id @default(cuid())
+  propertyId    String
+  guestId       String
+  platform      Platform
+  externalId    String?
+  bookingCode   String?           @unique
+  checkInTime   String            @default("14:00")
+  checkOutTime  String            @default("10:00")
+  checkIn       DateTime
+  checkOut      DateTime
+  nights        Int
+  grossAmount   Decimal           @db.Decimal(12, 2)
+  platformFee   Decimal           @default(0) @db.Decimal(12, 2)
+  netAmount     Decimal           @db.Decimal(12, 2)
+  status        ReservationStatus @default(CONFIRMED)
+  paymentStatus PaymentStatus     @default(PENDING)
+  notes         String?           @db.Text
+  liquidationId String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  property    Property     @relation(fields: [propertyId], references: [id])
+  guest       Guest        @relation(fields: [guestId], references: [id])
+  liquidation Liquidation? @relation(fields: [liquidationId], references: [id])
+  tasks       Task[]
+  messages    Message[]
+}
+
+enum ReservationStatus {
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  REFUNDED
+}
+
+// ─── LIQUIDACIONES ────────────────────────────────────────────────────────────
+
+model Liquidation {
+  id                  String            @id @default(cuid())
+  propertyId          String
+  periodYear          Int
+  periodMonth         Int
+  periodLabel         String
+  grossIncome         Decimal           @db.Decimal(12, 2)
+  platformFees        Decimal           @default(0) @db.Decimal(12, 2)
+  operationalExpenses Decimal           @default(0) @db.Decimal(12, 2)
+  commissionRate      Decimal           @db.Decimal(5, 2)
+  commissionAmount    Decimal           @db.Decimal(12, 2)
+  netToOwner          Decimal           @db.Decimal(12, 2)
+  dueDate             DateTime
+  paidAt              DateTime?
+  paymentMethod       String?
+  paymentReference    String?
+  lateFeeDays         Int               @default(0)
+  lateFeeAmount       Decimal           @default(0) @db.Decimal(12, 2)
+  totalDue            Decimal           @db.Decimal(12, 2)
+  status              LiquidationStatus @default(PENDING)
+  pdfUrl              String?
+  invoiceUrl          String?
+  invoiceFileName     String?
+  notes               String?           @db.Text
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  property     Property      @relation(fields: [propertyId], references: [id])
+  reservations Reservation[]
+  expenses     Expense[]
+
+  @@unique([propertyId, periodYear, periodMonth])
+}
+
+enum LiquidationStatus {
+  PENDING
+  SENT
+  PAID
+  OVERDUE
+}
+
+// ─── GASTOS OPERATIVOS ────────────────────────────────────────────────────────
+
+model Expense {
+  id            String          @id @default(cuid())
+  propertyId    String
+  liquidationId String?
+  category      ExpenseCategory
+  description   String
+  amount        Decimal         @db.Decimal(12, 2)
+  date          DateTime
+  receiptUrl    String?
+  status        ExpenseStatus   @default(ADVANCED_BY_GESTING)
+  paidAt        DateTime?
+  notes         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  property    Property     @relation(fields: [propertyId], references: [id])
+  liquidation Liquidation? @relation(fields: [liquidationId], references: [id])
+}
+
+enum ExpenseCategory {
+  CLEANING
+  LAUNDRY
+  SUPPLIES
+  REPAIR
+  UTILITY
+  MAINTENANCE
+  OTHER
+}
+
+enum ExpenseStatus {
+  ADVANCED_BY_GESTING
+  REIMBURSED
+  PAID_BY_OWNER
+}
+
+// ─── TAREAS ───────────────────────────────────────────────────────────────────
+
+model Task {
+  id            String     @id @default(cuid())
+  propertyId    String
+  reservationId String?
+  type          TaskType
+  title         String
+  description   String?    @db.Text
+  priority      Priority   @default(MEDIUM)
+  scheduledDate DateTime
+  completedAt   DateTime?
+  estimatedCost Decimal?   @db.Decimal(12, 2)
+  actualCost    Decimal?   @db.Decimal(12, 2)
+  provider      String?
+  status        TaskStatus @default(PENDING)
+  notes         String?    @db.Text
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  property    Property     @relation(fields: [propertyId], references: [id])
+  reservation Reservation? @relation(fields: [reservationId], references: [id])
+}
+
+enum TaskType {
+  CLEANING
+  MAINTENANCE
+  INSPECTION
+  RESTOCKING
+  REPAIR
+  OTHER
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// ─── CALENDARIO — BLOQUEOS ────────────────────────────────────────────────────
+
+model CalendarBlock {
+  id         String   @id @default(cuid())
+  propertyId String
+  title      String
+  startDate  DateTime
+  endDate    DateTime
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+// ─── MENSAJERÍA ───────────────────────────────────────────────────────────────
+
+model Message {
+  id            String           @id @default(cuid())
+  propertyId    String?
+  guestId       String?
+  ownerId       String?
+  reservationId String?
+  direction     MessageDirection
+  channel       MessageChannel
+  subject       String?
+  body          String           @db.Text
+  aiSuggested   Boolean          @default(false)
+  aiReviewed    Boolean          @default(false)
+  status        MessageStatus    @default(DRAFT)
+  sentAt        DateTime?
+  readAt        DateTime?
+  externalId    String?
+  createdAt     DateTime         @default(now())
+
+  property    Property?    @relation(fields: [propertyId], references: [id])
+  guest       Guest?       @relation(fields: [guestId], references: [id])
+  owner       Owner?       @relation(fields: [ownerId], references: [id])
+  reservation Reservation? @relation(fields: [reservationId], references: [id])
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageChannel {
+  EMAIL
+  WHATSAPP
+  INTERNAL
+}
+
+enum MessageStatus {
+  DRAFT
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+// ─── GOOGLE DRIVE ─────────────────────────────────────────────────────────────
+
+model GoogleToken {
+  id             String   @id @default(cuid())
+  userId         String   @unique          // matches JWT token.id (admin-1 for mock user)
+  accessToken    String   @db.Text
+  refreshToken   String?  @db.Text
+  expiresAt      DateTime?                 // when the access token expires
+  rootFolderId   String?                   // optional scoped root folder
+  scope          String?                   // granted OAuth scopes
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// ─── AUTOMATIZACIONES ─────────────────────────────────────────────────────────
+
+model AutomationRule {
+  id         String            @id @default(cuid())
+  name       String
+  trigger    AutomationTrigger
+  conditions Json?
+  actions    Json
+  isActive   Boolean           @default(true)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  logs AutomationLog[]
+}
+
+model AutomationLog {
+  id           String         @id @default(cuid())
+  ruleId       String
+  triggeredAt  DateTime       @default(now())
+  entityType   String
+  entityId     String
+  status       String
+  result       Json?
+  errorMessage String?
+
+  rule AutomationRule @relation(fields: [ruleId], references: [id])
+}
+
+enum AutomationTrigger {
+  RESERVATION_COMPLETED
+  RESERVATION_CHECKIN_TOMORROW
+  RESERVATION_CHECKOUT_TODAY
+  CONTRACT_EXPIRING_90
+  CONTRACT_EXPIRING_60
+  CONTRACT_EXPIRING_30
+  LIQUIDATION_OVERDUE
+  TASK_OVERDUE
+}
