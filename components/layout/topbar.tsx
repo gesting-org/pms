@@ -13,6 +13,7 @@ const BREADCRUMB_MAP: Record<string, string> = {
   owners:       "Propietarios",
   reservations: "Reservas",
   contracts:    "Contratos",
+  finanzas:     "Gestión Financiera",
   liquidations: "Liquidaciones",
   expenses:     "Gastos",
   analytics:    "Analíticas",

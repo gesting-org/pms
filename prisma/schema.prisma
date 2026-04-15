@@ -503,6 +503,33 @@ enum MessageStatus {
   FAILED
 }
 
+// ─── GASTOS EMPRESA ───────────────────────────────────────────────────────────
+// Estos gastos SÍ impactan en la utilidad de Gesting (salarios, marketing, etc.)
+// Son distintos a Expense que son siempre gastos de la propiedad/propietario.
+
+model CompanyExpense {
+  id          String                 @id @default(cuid())
+  category    CompanyExpenseCategory
+  description String
+  amount      Decimal                @db.Decimal(12, 2)
+  date        DateTime
+  receiptUrl  String?
+  notes       String?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+}
+
+enum CompanyExpenseCategory {
+  MARKETING
+  SOFTWARE
+  SALARY
+  SUBSCRIPTION
+  TOOLS
+  HONORARIOS
+  OFFICE
+  OTHER
+}
+
 // ─── GOOGLE DRIVE ─────────────────────────────────────────────────────────────
 
 model GoogleToken {

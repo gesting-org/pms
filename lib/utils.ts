@@ -130,3 +130,22 @@ export const PRIORITY_LABELS: Record<string, string> = {
   HIGH: "Alta",
   URGENT: "Urgente",
 };
+
+export const COMPANY_EXPENSE_CATEGORY_LABELS: Record<string, string> = {
+  MARKETING: "Marketing",
+  SOFTWARE: "Software",
+  SALARY: "Sueldos",
+  SUBSCRIPTION: "Suscripciones",
+  TOOLS: "Herramientas",
+  HONORARIOS: "Honorarios",
+  OFFICE: "Oficina",
+  OTHER: "Otro",
+};
+
+// ─── Formato corto de moneda (para gráficos) ──────────────────────────────────
+
+export function formatARSShort(value: number): string {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
+  return `$${value}`;
+}

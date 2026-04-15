@@ -29,7 +29,7 @@ const NAV_ITEMS = [
   { href: "/owners",             label: "Propietarios",        icon: Home2 },
   { href: "/reservations",       label: "Inquilinos",          icon: Profile2User },
   { href: "/contracts",          label: "Contratos",           icon: DocumentText },
-  { href: "/liquidations",       label: "Pagos y Finanzas",    icon: MoneyRecive },
+  { href: "/finanzas",           label: "Gestión Financiera",  icon: Wallet3 },
   { href: "/calendar",           label: "Calendario",          icon: Calendar },
   { href: "/tasks",              label: "Tareas",              icon: TaskSquare },
   { href: "/orders",             label: "Pedidos",             icon: ShoppingBag },
@@ -131,7 +131,7 @@ const MOBILE_NAV = [
   { href: "/dashboard",    label: "Inicio",   icon: Category2 },
   { href: "/properties",   label: "Props.",    icon: Buildings2 },
   { href: "/reservations", label: "Reservas",  icon: Calendar },
-  { href: "/liquidations", label: "Finanzas",  icon: MoneyRecive },
+  { href: "/finanzas",     label: "Finanzas",  icon: Wallet3 },
   { href: "/tasks",        label: "Tareas",    icon: TaskSquare },
 ];
 
