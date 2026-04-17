@@ -6,29 +6,28 @@ import { authOptions } from "@/lib/auth";
 import { saveTokens } from "@/lib/google-drive/token-store";
 
 export async function GET(req: NextRequest) {
+  const base = process.env.NEXTAUTH_URL ?? req.nextUrl.origin;
   const code = req.nextUrl.searchParams.get("code");
   const error = req.nextUrl.searchParams.get("error");
   const state = req.nextUrl.searchParams.get("state");
 
   if (error || !code) {
-    return NextResponse.redirect(new URL("/documents?error=oauth_denied", req.url));
+    return NextResponse.redirect(`${base}/documents?error=oauth_denied`);
   }
 
-  // Prefer userId from state param (more reliable than session cookie after OAuth redirect)
-  let userId: string = "";
+  let userId = "";
   if (state) {
     try {
       userId = Buffer.from(state, "base64").toString("utf-8");
     } catch {
-      // ignore decode errors
+      // ignore
     }
   }
 
-  // Fallback to session if state is missing
   if (!userId) {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.redirect(new URL("/login", req.url));
+      return NextResponse.redirect(`${base}/login`);
     }
     userId = (session.user as any)?.id ?? session.user?.email ?? "default";
   }
@@ -41,16 +40,14 @@ export async function GET(req: NextRequest) {
 
   try {
     const { tokens } = await oauth2.getToken(code);
-
     await saveTokens(userId, {
       accessToken: tokens.access_token!,
       refreshToken: tokens.refresh_token ?? undefined,
       expiresAt: tokens.expiry_date ?? undefined,
     });
-
-    return NextResponse.redirect(new URL("/documents?connected=1", req.url));
+    return NextResponse.redirect(`${base}/documents?connected=1`);
   } catch (err) {
-    console.error("[drive/callback]", err);
-    return NextResponse.redirect(new URL("/documents?error=token_exchange", req.url));
+    console.error("[drive/callback] token exchange error:", err);
+    return NextResponse.redirect(`${base}/documents?error=token_exchange`);
   }
 }
