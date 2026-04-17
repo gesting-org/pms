@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Prefer userId from state param (more reliable than session cookie after OAuth redirect)
-  let userId: string | null = null;
+  let userId: string = "";
   if (state) {
     try {
       userId = Buffer.from(state, "base64").toString("utf-8");
