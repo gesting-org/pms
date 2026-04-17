@@ -14,6 +14,8 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: "No autenticado" }, { status: 401 });
   }
 
+  const userId = (session.user as any)?.id ?? session.user?.email ?? "default";
+
   const oauth2 = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
@@ -22,8 +24,9 @@ export async function GET() {
 
   const url = oauth2.generateAuthUrl({
     access_type: "offline",
-    prompt: "consent",   // always show consent screen to get refresh_token
+    prompt: "consent",
     scope: SCOPES,
+    state: Buffer.from(userId).toString("base64"),
   });
 
   return NextResponse.redirect(url);

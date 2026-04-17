@@ -6,16 +6,31 @@ import { authOptions } from "@/lib/auth";
 import { saveTokens } from "@/lib/google-drive/token-store";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.redirect(new URL("/login", req.url));
-  }
-
   const code = req.nextUrl.searchParams.get("code");
   const error = req.nextUrl.searchParams.get("error");
+  const state = req.nextUrl.searchParams.get("state");
 
   if (error || !code) {
     return NextResponse.redirect(new URL("/documents?error=oauth_denied", req.url));
+  }
+
+  // Prefer userId from state param (more reliable than session cookie after OAuth redirect)
+  let userId: string | null = null;
+  if (state) {
+    try {
+      userId = Buffer.from(state, "base64").toString("utf-8");
+    } catch {
+      // ignore decode errors
+    }
+  }
+
+  // Fallback to session if state is missing
+  if (!userId) {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+    userId = (session.user as any)?.id ?? session.user?.email ?? "default";
   }
 
   const oauth2 = new google.auth.OAuth2(
@@ -26,7 +41,6 @@ export async function GET(req: NextRequest) {
 
   try {
     const { tokens } = await oauth2.getToken(code);
-    const userId = (session.user as any)?.id ?? session.user?.email ?? "default";
 
     await saveTokens(userId, {
       accessToken: tokens.access_token!,
